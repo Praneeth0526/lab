@@ -1,0 +1,45 @@
+EXPERIMENT 1: Employee CRUD Operations
+
+Aim: To create an Employee collection in MongoDB and perform CRUD
+operations.
+
+A. Insert employee details
+
+use LAB_PRGM_1
+
+db.EMPLOYEE_PROGRAM.insertMany([ { empId: “E001”, name: “Anjali”, age:
+35, gender: “Female”, department: “HR”, salary: 48000, address:
+“Bangalore” }, { empId: “E002”, name: “Rakesh”, age: 42, gender: “Male”,
+department: “IT”, salary: 62000, address: “Mysore” }, { empId: “E003”,
+name: “Divya”, age: 29, gender: “Female”, department: “Marketing”,
+salary: 45000, address: “Chennai” }])
+
+B. Retrieve employees whose age is ≤ 40
+
+db.EMPLOYEE_PROGRAM.find({ age: { $lte: 40 } })
+
+Expected result: Anjali and Divya.
+
+C. Display employees whose salary is less than ₹50,000
+
+db.EMPLOYEE_PROGRAM.find({ salary: { $lt: 50000 } })
+
+Expected result: Anjali and Divya.
+
+D. Demonstrate update operation
+
+// Update one employee’s salary db.EMPLOYEE_PROGRAM.updateOne( { empId:
+“E003” }, { $set: { salary: 55000 } } )
+
+// Update the department of all IT employees
+db.EMPLOYEE_PROGRAM.updateMany( { department: “IT” }, { $set: {
+department: “Tech Support” } } )
+
+E. Delete employees belonging to a department
+
+db.EMPLOYEE_PROGRAM.deleteMany({ department: “HR” })
+
+db.EMPLOYEE_PROGRAM.find()
+
+Result: The Employee collection was created, and insert, retrieve,
+update, and delete operations were performed.

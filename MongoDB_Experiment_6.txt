@@ -1,0 +1,53 @@
+EXPERIMENT 6
+
+Sharding Performance Comparison
+
+Aim: Compare equality, range and aggregation queries on unsharded and
+sharded movie collections.
+
+Prerequisite: sharded cluster
+
+// Connect to a running mongos router with at least two shards. // The
+config server, shard replica sets and mongos must be started first. //
+Run the remaining commands in mongosh connected to mongos.
+
+1.  Create sample collections
+
+use perfTestDB db.movies_unsharded.drop() db.movies_sharded.drop() const
+movies=[ {title:‘Movie A’,year:2010,genre:‘Action’,rating:8},
+{title:‘Movie B’,year:2014,genre:‘Drama’,rating:7}]
+db.movies_unsharded.insertMany(movies)
+sh.shardCollection(‘perfTestDB.movies_sharded’,{year:1})
+db.movies_sharded.insertMany(movies)
+
+2.  Equality query
+
+db.movies_unsharded.find({year:2010}).explain(‘executionStats’)
+db.movies_sharded.find({year:2010}).explain(‘executionStats’)
+
+3.  Range query
+
+db.movies_unsharded.find({year:{gte : 2010,lt:2015}}).explain(‘executionStats’)
+db.movies_sharded.find({year:{gte : 2010,lt:2015}}).explain(‘executionStats’)
+
+4.  Aggregation: average rating by genre
+
+const
+pipeline=[{$match:{year:{$gte:2010,$lt:2015}}},{$group:{_id:‘$genre',avgRating:{$avg:’$rating’}}}]
+db.movies_unsharded.aggregate(pipeline)
+db.movies_sharded.aggregate(pipeline) // Optional: inspect execution
+plans db.movies_sharded.explain(‘executionStats’).aggregate(pipeline)
+
+5.  Check sharding
+
+sh.status() // Optional: for real performance testing, insert a much
+larger dataset // and confirm chunks are distributed across shards.
+
+Result / Note
+
+Expected: equality finds Movie A; range finds both; aggregation gives
+Action = 8 and Drama = 7. Two records are enough to practice commands,
+NOT to demonstrate faster execution. Sharding does not guarantee
+improvement and a small collection may reside on one shard. The cluster
+must already be configured; shardCollection requires a working sharded
+cluster.

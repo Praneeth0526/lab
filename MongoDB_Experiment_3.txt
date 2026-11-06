@@ -1,0 +1,137 @@
+EXPERIMENT 3: Pharmacy Database and Aggregation
+
+Aim: To create a pharmacy database with schema validation and perform
+multi-collection aggregation operations.
+
+A. Switch to database
+
+use pharmacyDB
+
+B. Create collections with validation
+
+1.  Customers
+
+db.createCollection(“customers”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“custId”, “name”, “age”, “phone”], properties: {
+custId: { bsonType: “int” }, name: { bsonType: “string” }, age: {
+bsonType: “int”, minimum: 18 }, phone: { bsonType: “string” } } } } })
+
+2.  Suppliers
+
+db.createCollection(“suppliers”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“supplierId”, “name”, “city”], properties: {
+supplierId: { bsonType: “int” }, name: { bsonType: “string” }, city: {
+bsonType: “string” } } } } })
+
+3.  Medicines
+
+db.createCollection(“medicines”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“medId”, “medName”, “supplierId”, “price”, “stock”,
+“expiryDate”], properties: { medId: { bsonType: “int” }, medName: {
+bsonType: “string” }, supplierId: { bsonType: “int” }, price: {
+bsonType: “int” }, stock: { bsonType: “int”, minimum: 0 }, expiryDate: {
+bsonType: “date” } } } } })
+
+4.  Orders
+
+db.createCollection(“orders”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“orderId”, “custId”, “medId”, “quantity”,
+“orderDate”], properties: { orderId: { bsonType: “int” }, custId: {
+bsonType: “int” }, medId: { bsonType: “int” }, quantity: { bsonType:
+“int”, minimum: 1 }, orderDate: { bsonType: “date” } } } } })
+
+5.  Pharmacists
+
+db.createCollection(“pharmacists”, { validator: { $jsonSchema: {
+bsonType: “object”, required: [“pharmaId”, “name”, “joiningDate”],
+properties: { pharmaId: { bsonType: “int” }, name: { bsonType: “string”
+}, joiningDate: { bsonType: “date” } } } } })
+
+C. Insert sample data
+
+Customers
+
+db.customers.insertMany([ { custId: 1, name: “Arjun”, age: 25, phone:
+“9876543210” }, { custId: 2, name: “Priya”, age: 30, phone: “9876501234”
+}])
+
+Suppliers
+
+db.suppliers.insertMany([ { supplierId: 1, name: “MedLife”, city:
+“Bangalore” }, { supplierId: 2, name: “PharmaCare”, city: “Chennai” }])
+
+Medicines
+
+db.medicines.insertMany([ { medId: 1, medName: “Paracetamol”,
+supplierId: 1, price: 20, stock: 100, expiryDate: ISODate(“2027-12-31”)
+}, { medId: 2, medName: “Amoxicillin”, supplierId: 2, price: 50, stock:
+40, expiryDate: ISODate(“2027-06-30”) }])
+
+Pharmacists
+
+db.pharmacists.insertMany([ { pharmaId: 1, name: “Dr. Kumar”,
+joiningDate: ISODate(“2020-06-10”) }, { pharmaId: 2, name: “Dr. Meera”,
+joiningDate: ISODate(“2021-07-15”) }])
+
+Orders
+
+db.orders.insertMany([ { orderId: 1, custId: 1, medId: 1, quantity: 2,
+orderDate: ISODate(“2025-08-01”) }, { orderId: 2, custId: 2, medId: 2,
+quantity: 3, orderDate: ISODate(“2025-08-02”) }])
+
+D. Aggregation queries
+
+i.  Orders with customer and medicine names
+
+db.orders.aggregate([ { $lookup: { from: “customers”, localField:
+“custId”, foreignField: “custId”, as: “customerInfo” } }, {
+$unwind: "$customerInfo” }, { $lookup: { from: “medicines”, localField:
+“medId”, foreignField: “medId”, as: “medicineInfo” } }, {
+$unwind: "$medicineInfo” }, { $project: {
+      _id: 0,
+      orderId: 1,
+      customer: "$customerInfo.name”, medicine: “$medicineInfo.medName”,
+quantity: 1 } }])
+
+ii. Total sales per medicine
+
+db.orders.aggregate([ { $lookup: { from: “medicines”, localField:
+“medId”, foreignField: “medId”, as: “medInfo” } }, { $unwind: "$medInfo”
+}, { $group: {
+      _id: "$medInfo.medName”, totalSold: { $sum: "$quantity” },
+totalRevenue: { $sum: { $multiply: ["$quantity”, “$medInfo.price”] } } }
+}, { $sort: { totalRevenue: -1 } } ])
+
+iii. Supplier-wise revenue
+
+db.orders.aggregate([ { $lookup: { from: “medicines”, localField:
+“medId”, foreignField: “medId”, as: “medInfo” } }, { $unwind: "$medInfo”
+}, { $lookup: { from: “suppliers”, localField: “medInfo.supplierId”,
+foreignField: “supplierId”, as: “supplierInfo” } }, {
+$unwind: "$supplierInfo” }, { $group: {
+      _id: "$supplierInfo.name”, revenue: { $sum: {
+$multiply: ["$quantity”, “$medInfo.price”] } } } } ])
+
+iv. Medicines with stock below 70 units
+
+db.medicines.aggregate([ { $match: { stock: { $lt: 70 } } }, { $lookup:
+{ from: “suppliers”, localField: “supplierId”, foreignField:
+“supplierId”, as: “supplierInfo” } }, { $unwind: "$supplierInfo” }, {
+$project: {
+      _id: 0,
+      medName: 1,
+      stock: 1,
+      supplier: "$supplierInfo.name” } }])
+
+Expected result: Amoxicillin, with stock of 40 units.
+
+v.  Customer order summary
+
+db.customers.aggregate([ { $lookup: { from: “orders”, localField:
+“custId”, foreignField: “custId”, as: “ordersList” } }, { $project: {
+_id: 0, name: 1, totalOrders: { $size: "$ordersList” } } }, { $sort: {
+totalOrders: -1 } }])
+
+Result: The pharmacy database was created with validated collections.
+Aggregation queries were used to calculate sales, supplier revenue,
+stock levels, and customer order summaries.

@@ -1,0 +1,176 @@
+EXPERIMENT 4: Hospital Database and Indexing
+
+Aim: To create a hospital database with schema validation, implement
+different types of indexes, and compare query performance with and
+without indexes.
+
+A. Create database
+
+use hospitalDB
+
+B. Create collections with validation
+
+1.  Patients
+
+db.createCollection(“patients”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“patientId”, “name”, “age”, “dateOfBirth”],
+properties: { patientId: { bsonType: “int” }, name: { bsonType: “string”
+}, age: { bsonType: “int”, minimum: 0, maximum: 120 }, dateOfBirth: {
+bsonType: “date” } } } } })
+
+2.  Doctors
+
+db.createCollection(“doctors”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“doctorId”, “name”, “specialization”], properties:
+{ doctorId: { bsonType: “int” }, name: { bsonType: “string” },
+specialization: { bsonType: “string” } } } } })
+
+3.  Medicines
+
+db.createCollection(“medicines”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“medicineId”, “name”, “category”, “price”,
+“expiryDate”], properties: { medicineId: { bsonType: “int” }, name: {
+bsonType: “string” }, category: { bsonType: “string” }, price: {
+bsonType: “double” }, expiryDate: { bsonType: “date” } } } } })
+
+4.  Prescriptions
+
+db.createCollection(“prescriptions”, { validator: { $jsonSchema: {
+bsonType: “object”, required: [“prescriptionId”, “patientId”,
+“doctorId”, “medicineId”, “dateIssued”], properties: { prescriptionId: {
+bsonType: “int” }, patientId: { bsonType: “int” }, doctorId: { bsonType:
+“int” }, medicineId: { bsonType: “int” }, dateIssued: { bsonType: “date”
+} } } } })
+
+5.  Sales
+
+db.createCollection(“sales”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“saleId”, “medicineId”, “quantity”, “saleDate”],
+properties: { saleId: { bsonType: “int” }, medicineId: { bsonType: “int”
+}, quantity: { bsonType: “int”, minimum: 1 }, saleDate: { bsonType:
+“date” } } } } })
+
+C. Insert sample data
+
+Patients
+
+db.patients.insertMany([ { patientId: 1, name: “Alice”, age: 29,
+dateOfBirth: ISODate(“1996-03-15”) }, { patientId: 2, name: “Bob”, age:
+45, dateOfBirth: ISODate(“1980-07-22”) }])
+
+Doctors
+
+db.doctors.insertMany([ { doctorId: 1, name: “Dr. Kumar”,
+specialization: “Cardiology” }, { doctorId: 2, name: “Dr. Meera”,
+specialization: “Neurology” }])
+
+Medicines
+
+db.medicines.insertMany([ { medicineId: 1, name: “Paracetamol”,
+category: “Pain Relief”, price: 2.5, expiryDate: ISODate(“2027-05-01”)
+}, { medicineId: 2, name: “Amoxicillin”, category: “Antibiotic”, price:
+5.0, expiryDate: ISODate(“2027-08-15”) }])
+
+Prescriptions
+
+db.prescriptions.insertMany([ { prescriptionId: 1, patientId: 1,
+doctorId: 1, medicineId: 1, dateIssued: ISODate(“2025-08-01”) }, {
+prescriptionId: 2, patientId: 2, doctorId: 2, medicineId: 2, dateIssued:
+ISODate(“2025-08-02”) }])
+
+Sales
+
+db.sales.insertMany([ { saleId: 1, medicineId: 1, quantity: 5, saleDate:
+ISODate(“2025-08-01”) }, { saleId: 2, medicineId: 2, quantity: 3,
+saleDate: ISODate(“2025-08-02”) }])
+
+D. Create indexes
+
+i.  Single-field index
+
+db.patients.createIndex({ patientId: 1 })
+
+ii. Compound index
+
+db.prescriptions.createIndex({ patientId: 1, dateIssued: -1 })
+
+iii. Text index
+
+db.medicines.createIndex({ name: “text”, category: “text” })
+
+// Search for the keyword “pain” db.medicines.find({ $text: { $search:
+“pain” } })
+
+iv. Partial index
+
+db.medicines.createIndex( { expiryDate: 1 }, { partialFilterExpression:
+{ expiryDate: { $gte: ISODate(“2027-01-01”) } } } )
+
+// Query matching the partial-index filter db.medicines.find({
+expiryDate: { $gte: ISODate(“2027-01-01”) } })
+
+v.  Unique index
+
+db.doctors.createIndex( { doctorId: 1 }, { unique: true } )
+
+// This insert should fail because doctorId 1 already exists
+db.doctors.insertOne({ doctorId: 1, name: “Dr. Duplicate”,
+specialization: “Test” })
+
+E. Example queries using indexes
+
+// Single-field index db.patients.find({ patientId: 1 })
+
+// Compound index db.prescriptions.find( { patientId: 1 } ).sort({
+dateIssued: -1 })
+
+// Text index db.medicines.find({ $text: { $search: “antibiotic” } })
+
+// Partial index db.medicines.find({ expiryDate: { $gte:
+ISODate(“2027-01-01”) } })
+
+F. Verify indexes
+
+db.medicines.getIndexes() db.patients.getIndexes()
+
+G. Compare performance
+
+i.  Without patientId index
+
+db.patients.dropIndex({ patientId: 1 })
+
+db.patients.find({ patientId: 2 }).explain(“executionStats”)
+
+ii. With patientId index
+
+db.patients.createIndex({ patientId: 1 })
+
+db.patients.find({ patientId: 2 }).explain(“executionStats”)
+
+Expected observation: Without a usable index, MongoDB may scan the
+collection. With an index, it may examine fewer documents. Exact
+execution time and documents examined depend on dataset size, indexes,
+and environment.
+
+Result: The hospital database was created with validated collections.
+Indexes were created and verified, and execution statistics were
+compared.
+
+LAST-MINUTE REVISION
+
+1.  Essential MongoDB commands
+
+2.  Aggregation operators
+
+3.  Five index types
+
+4.  Four mistakes to avoid
+
+Collection names must match exactly between insert and query commands.
+
+Use the correct data types required by schema validation.
+
+Use ISODate(“YYYY-MM-DD”) for fields validated as dates.
+
+If a collection already exists, createCollection() may fail; check
+before recreating it.

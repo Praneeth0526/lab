@@ -1,0 +1,61 @@
+EXPERIMENT 5
+
+Library Database, Validation and Indexing
+
+Aim: Create four collections with validation, insert sample records,
+create indexes and compare queries using explain().
+
+1.  Create database and validated collections
+
+use LibraryDB // Compact validation: required fields and basic types
+db.createCollection(‘books’, {validator:
+{$jsonSchema: {bsonType:'object', required:['isbn','title','authorId'], properties:{isbn:{bsonType:'string'},title:{bsonType:'string'},authorId:{bsonType:'int'}}}}})
+db.createCollection('members', {validator: {$jsonSchema:
+{bsonType:‘object’, required:[‘memberId’,‘name’],
+properties:{memberId:{bsonType:‘int’},name:{bsonType:‘string’}}}}})
+db.createCollection(‘borrowRecords’, {validator:
+{$jsonSchema: {bsonType:'object', required:['memberId','isbn','borrowDate','returnDate'], properties:{memberId:{bsonType:'int'},isbn:{bsonType:'string'},borrowDate:{bsonType:'date'},returnDate:{bsonType:'date'}}}}})
+db.createCollection('authors', {validator: {$jsonSchema:
+{bsonType:‘object’, required:[‘authorId’,‘name’],
+properties:{authorId:{bsonType:‘int’},name:{bsonType:‘string’}}}}})
+
+2.  Insert two sample documents per collection
+
+db.books.insertMany([{isbn:‘B1’,title:‘MongoDB
+Basics’,authorId:1},{isbn:‘B2’,title:‘Python Guide’,authorId:2}])
+db.members.insertMany([{memberId:1,name:‘Ravi’},{memberId:2,name:‘Anita’}])
+db.authors.insertMany([{authorId:1,name:‘John’},{authorId:2,name:‘Jane’}])
+db.borrowRecords.insertMany([
+{memberId:1,isbn:‘B1’,borrowDate:ISODate(‘2025-01-01’),returnDate:ISODate(‘2025-01-10’)},
+{memberId:2,isbn:‘B2’,borrowDate:ISODate(‘2025-01-02’),returnDate:ISODate(‘2025-01-12’)}])
+
+3.  Create indexes (four types)
+
+db.books.createIndex({isbn:1}) // Single-field
+db.borrowRecords.createIndex({memberId:1,borrowDate:-1}) // Compound
+db.books.createIndex({title:‘text’}) // Text
+db.members.createIndex({memberId:1},{unique:true}) // Unique
+
+4.  Performance: without and with index
+
+db.books.dropIndex(‘isbn_1’)
+db.books.find({isbn:‘B1’}).explain(‘executionStats’)
+db.books.createIndex({isbn:1})
+db.books.find({isbn:‘B1’}).explain(‘executionStats’)
+
+5.  Additional indexed queries
+
+db.books.createIndex({authorId:1}) db.books.find({authorId:1}) // Books
+by author db.books.find({$text:{$search:‘MongoDB’}}) // Title keyword
+db.borrowRecords.createIndex({returnDate:1})
+db.borrowRecords.find({returnDate:{$lt:new Date()}}) // Past return
+dates db.borrowRecords.find({memberId:1}).sort({borrowDate:-1}) //
+History
+
+Result / Note
+
+Expected: queries return the inserted books and borrowing records.
+explain(“executionStats”) shows index usage (IXSCAN) when the optimizer
+chooses it. With just two records, speed differences are not meaningful.
+A past return date is only a potential overdue record; actual overdue
+status also requires tracking whether the book was returned.

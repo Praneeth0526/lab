@@ -1,0 +1,139 @@
+EXPERIMENT 2: University Database and Aggregation
+
+Aim: To create a university database with schema validation and perform
+aggregation operations using $lookup, $match, $group, $project, $sort,
+$unwind, and $facet.
+
+A. Switch to database
+
+use universityDB
+
+B. Create collections with schema validation
+
+1.  Students
+
+db.createCollection(“students”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“studentId”, “name”, “age”, “deptId”], properties:
+{ studentId: { bsonType: “int” }, name: { bsonType: “string” }, age: {
+bsonType: “int”, minimum: 18 }, deptId: { bsonType: “int” } } } } })
+
+2.  Departments
+
+db.createCollection(“departments”, { validator: { $jsonSchema: {
+bsonType: “object”, required: [“deptId”, “deptName”], properties: {
+deptId: { bsonType: “int” }, deptName: { bsonType: “string” } } } } })
+
+3.  Courses
+
+db.createCollection(“courses”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“courseId”, “courseName”, “deptId”], properties: {
+courseId: { bsonType: “int” }, courseName: { bsonType: “string” },
+deptId: { bsonType: “int” } } } } })
+
+4.  Faculty
+
+db.createCollection(“faculty”, { validator: { $jsonSchema: { bsonType:
+“object”, required: [“facultyId”, “name”, “deptId”, “joiningDate”],
+properties: { facultyId: { bsonType: “int” }, name: { bsonType: “string”
+}, deptId: { bsonType: “int” }, joiningDate: { bsonType: “date” } } } }
+})
+
+5.  Enrollments
+
+db.createCollection(“enrollments”, { validator: { $jsonSchema: {
+bsonType: “object”, required: [“studentId”, “courseId”, “enrollDate”],
+properties: { studentId: { bsonType: “int” }, courseId: { bsonType:
+“int” }, enrollDate: { bsonType: “date” } } } } })
+
+C. Insert sample data
+
+Students
+
+db.students.insertMany([ { studentId: 1, name: “Arjun”, age: 20, deptId:
+101 }, { studentId: 2, name: “Priya”, age: 21, deptId: 102 }])
+
+Departments
+
+db.departments.insertMany([ { deptId: 101, deptName: “Computer Science”
+}, { deptId: 102, deptName: “Electronics” }])
+
+Courses
+
+db.courses.insertMany([ { courseId: 1, courseName: “DBMS”, deptId: 101
+}, { courseId: 2, courseName: “Circuits”, deptId: 102 }])
+
+Faculty
+
+db.faculty.insertMany([ { facultyId: 1, name: “Dr. Kumar”, deptId: 101,
+joiningDate: ISODate(“2020-06-10”) }, { facultyId: 2, name: “Dr. Meera”,
+deptId: 102, joiningDate: ISODate(“2021-07-15”) }])
+
+Enrollments
+
+db.enrollments.insertMany([ { studentId: 1, courseId: 1, enrollDate:
+ISODate(“2025-08-01”) }, { studentId: 2, courseId: 2, enrollDate:
+ISODate(“2025-08-02”) }])
+
+D. Aggregation queries
+
+i.  List each student with department name
+
+db.students.aggregate([ { $lookup: { from: “departments”, localField:
+“deptId”, foreignField: “deptId”, as: “deptInfo” } }, {
+$unwind: "$deptInfo” }, { $project: {
+      _id: 0,
+      name: 1,
+      department: "$deptInfo.deptName” } }])
+
+ii. Show each student’s enrolled courses
+
+db.students.aggregate([ { $lookup: { from: “enrollments”, localField:
+“studentId”, foreignField: “studentId”, as: “enrollments” } }, {
+$unwind: "$enrollments” }, { $lookup: { from: “courses”, localField:
+“enrollments.courseId”, foreignField: “courseId”, as: “courseInfo” } },
+{ $unwind: "$courseInfo” }, { $project: {
+      _id: 0,
+      student: "$name”, course: “$courseInfo.courseName” } }])
+
+iii. Count students per department
+
+db.students.aggregate([ { $group: {
+      _id: "$deptId”, totalStudents: { $sum: 1 } } }, { $lookup: { from:
+“departments”, localField: “_id”, foreignField: “deptId”, as: “deptInfo”
+} }, { $unwind: "$deptInfo” }, { $project: {
+      _id: 0,
+      department: "$deptInfo.deptName”, totalStudents: 1 } }, { $sort: {
+totalStudents: -1 } }])
+
+iv. Faculty with courses and departments
+
+db.faculty.aggregate([ { $lookup: { from: “departments”, localField:
+“deptId”, foreignField: “deptId”, as: “deptInfo” } }, {
+$unwind: "$deptInfo” }, { $lookup: { from: “courses”, localField:
+“deptId”, foreignField: “deptId”, as: “coursesTaught” } }, { $project: {
+      _id: 0,
+      facultyName: "$name”, department: “$deptInfo.deptName",
+      courses: "$coursesTaught.courseName” } }])
+
+v.  Department summary
+
+db.departments.aggregate([ { $lookup: { from: “students”, localField:
+“deptId”, foreignField: “deptId”, as: “studentsList” } }, { $lookup: {
+from: “faculty”, localField: “deptId”, foreignField: “deptId”, as:
+“facultyList” } }, { $lookup: { from: “courses”, localField: “deptId”,
+foreignField: “deptId”, as: “coursesList” } }, { $project: {
+      _id: 0,
+      department: "$deptName”, totalStudents: { $size: "$studentsList”
+}, totalFaculty: { $size: "$facultyList” }, totalCourses: {
+$size: "$coursesList” } } }])
+
+vi. Bonus: Use $match and $facet
+
+db.students.aggregate([ { $match: { age: { $gte: 20 } } }, { $facet: {
+studentDetails: [ { $project: { _id: 0, name: 1, age: 1 } } ],
+departmentCounts: [ { $group: {
+            _id: "$deptId”, count: { $sum: 1 } } } ] } }])
+
+Result: The university database was created with validated collections.
+Sample data was inserted and aggregation queries were used to retrieve
+student, course, faculty, and department reports.
