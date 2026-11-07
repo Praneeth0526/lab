@@ -11,26 +11,41 @@ pip install pymongo
 
 2.  Python program (save as app.py)
 
-import tkinter as tk from tkinter import messagebox from pymongo import
-MongoClient
+import tkinter as tk
+from tkinter import messagebox
+from pymongo import MongoClient
 
-col = MongoClient(‘mongodb://localhost:27017/’).collegeDB.students
+col = MongoClient('mongodb://localhost:27017/').collegeDB.students
 
-def insert(): try: name, roll = name_box.get().strip(),
-roll_box.get().strip() if not name or not roll: raise ValueError(‘Enter
-both fields’) col.insert_one({‘name’: name, ‘roll’: roll})
-messagebox.showinfo(‘Success’, ‘Student added’) except ValueError as e:
-messagebox.showerror(‘Error’, str(e))
+def insert():
+    name = name_box.get()
+    roll = roll_box.get()
+    col.insert_one({'name': name, 'roll': roll})
+    messagebox.showinfo('Success', 'Student added')
 
-def show(): output.delete(‘1.0’, tk.END) for s in col.find({}, {’_id’:
-0}): output.insert(tk.END, f”{s[‘name’]} - {s[‘roll’]}“)
+def show():
+    output.delete('1.0', tk.END)
+    for s in col.find():
+        output.insert(tk.END, f"{s['name']} - {s['roll']}\n")
 
-app = tk.Tk() app.title(‘MongoDB Student App’) tk.Label(app,
-text=‘Name’).pack() name_box = tk.Entry(app); name_box.pack()
-tk.Label(app, text=‘Roll No’).pack() roll_box = tk.Entry(app);
-roll_box.pack() tk.Button(app, text=‘Insert’, command=insert).pack()
-tk.Button(app, text=‘Show Students’, command=show).pack() output =
-tk.Text(app, width=35, height=6); output.pack() app.mainloop()
+app = tk.Tk()
+app.title('MongoDB Student App')
+
+tk.Label(app, text='Name').pack()
+name_box = tk.Entry(app)
+name_box.pack()
+
+tk.Label(app, text='Roll No').pack()
+roll_box = tk.Entry(app)
+roll_box.pack()
+
+tk.Button(app, text='Insert', command=insert).pack()
+tk.Button(app, text='Show Students', command=show).pack()
+
+output = tk.Text(app, width=35, height=6)
+output.pack()
+
+app.mainloop()
 
 3.  Run
 
